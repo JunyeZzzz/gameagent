@@ -1,0 +1,385 @@
+{
+  "model": "deepseek-flash",
+  "thinking": "disabled",
+  "protocol": "Shuffled within blocks; fixed game seeds 24 (LavaGapS7) and 1 (DoorKey5x5), fresh sessions, original packaged full-map/effects adapter. 10 vanilla lava trials, 10 with rejection and feedback solely when native forward would enter lava, 6 vanilla door trials. 35 steps/42 requests for lava; 22/24 for door. Frozen checks reuse the original fatal step-6 request, with 20 unaltered and 20 removing only the optional subgoal field from the tool schema. Native outcome of each action and each blocked alternative replayed. Results limited to these maps and this hosted sampling configuration.",
+  "overall_http_requests": 650,
+  "natural_groups": {
+    "base": {
+      "n": 10,
+      "ends": {
+        "success": 8,
+        "step_cap": 2
+      },
+      "episodes_selecting_loss": 0,
+      "dangerous_choices": 0,
+      "facing_decisions": 29,
+      "facing_native_states": 29,
+      "blocked": 0,
+      "wins_after_block": 0,
+      "wins_steps": [
+        21,
+        23,
+        15,
+        23,
+        33,
+        17,
+        11,
+        11
+      ],
+      "median_winning_steps": 19.0,
+      "http_requests": 236
+    },
+    "guard": {
+      "n": 10,
+      "ends": {
+        "success": 9,
+        "step_cap": 1
+      },
+      "episodes_selecting_loss": 0,
+      "dangerous_choices": 0,
+      "facing_decisions": 27,
+      "facing_native_states": 27,
+      "blocked": 0,
+      "wins_after_block": 0,
+      "wins_steps": [
+        35,
+        11,
+        30,
+        15,
+        15,
+        22,
+        35,
+        25,
+        11
+      ],
+      "median_winning_steps": 22,
+      "http_requests": 254
+    },
+    "door": {
+      "n": 6,
+      "ends": {
+        "success": 6
+      },
+      "episodes_selecting_loss": 0,
+      "dangerous_choices": 0,
+      "facing_decisions": 0,
+      "facing_native_states": 0,
+      "blocked": 0,
+      "wins_after_block": 0,
+      "wins_steps": [
+        11,
+        11,
+        7,
+        7,
+        7,
+        7
+      ],
+      "median_winning_steps": 7.0,
+      "http_requests": 51
+    }
+  },
+  "junction": {
+    "xy": [
+      2,
+      2
+    ],
+    "facing": "south",
+    "optimal_primitive": "left",
+    "wrong_primitive": "forward",
+    "remaining_moves_before": 8,
+    "remaining_moves_after_wrong": 11,
+    "trials_with_first_regression_here": [
+      "base-01",
+      "base-02",
+      "base-03",
+      "base-04",
+      "base-05",
+      "base-06",
+      "base-07",
+      "base-09",
+      "guard-01",
+      "guard-03",
+      "guard-04",
+      "guard-05",
+      "guard-06",
+      "guard-08"
+    ],
+    "endings_of_those_trials": {
+      "success": 11,
+      "step_cap": 3
+    },
+    "annotation": "First action that increases shortest safe path to goal (rotations included) for each of the 20 full lava episodes."
+  },
+  "checkpoint": {
+    "xy": [
+      2,
+      3
+    ],
+    "facing": "east",
+    "map_rows": [
+      "#######",
+      "#..~..#",
+      "#.....#",
+      "#.>~..#",
+      "#..~..#",
+      "#..~.G#",
+      "#######"
+    ],
+    "goal": "avoid the lava and get to the green goal square",
+    "distance_at_snapshot": 10,
+    "native_effects": {
+      "left": "progress",
+      "right": "safe_no_progress",
+      "forward": "fatal",
+      "pickup": "safe_no_progress",
+      "drop": "safe_no_progress",
+      "toggle": "safe_no_progress",
+      "done": "safe_no_progress"
+    },
+    "original_payload_sha256": "df753b904b4329dedc73c2b66af889d0e8af41ec08bee9c043de5415e3d02096"
+  },
+  "single_requests": [
+    {
+      "trial": "exact-01",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-02",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "exact-03",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-04",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-05",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-06",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-07",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-08",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-09",
+      "kind": "fatal",
+      "action": "forward",
+      "choice": "forward"
+    },
+    {
+      "trial": "exact-10",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-11",
+      "kind": "progress",
+      "action": "left",
+      "choice": "route:[\"stand on goal (5,5)\",\"left\"]"
+    },
+    {
+      "trial": "exact-12",
+      "kind": "progress",
+      "action": "left",
+      "choice": "route:[\"stand on goal (5,5)\",\"left\"]"
+    },
+    {
+      "trial": "exact-13",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-14",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-15",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-16",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-17",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "exact-18",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "exact-19",
+      "kind": "progress",
+      "action": "left",
+      "choice": "route:[\"stand on goal (5,5)\",\"left\"]"
+    },
+    {
+      "trial": "exact-20",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-01",
+      "kind": "progress",
+      "action": "left",
+      "choice": "route:[\"stand on goal (5,5)\",\"left\"]"
+    },
+    {
+      "trial": "only-02",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-03",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-04",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-05",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-06",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-07",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-08",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-09",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-10",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-11",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-12",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-13",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-14",
+      "kind": "safe_no_progress",
+      "action": "right",
+      "choice": "right"
+    },
+    {
+      "trial": "only-15",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-16",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-17",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-18",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    },
+    {
+      "trial": "only-19",
+      "kind": "progress",
+      "action": "left",
+      "choice": "left"
+    },
+    {
+      "trial": "only-20",
+      "kind": "observe",
+      "action": null,
+      "choice": null
+    }
+  ],
+  "recovery_protocol": "Replay the archived first five native steps, place the historically selected fatal forward through the live rejection guard, restore the five confirmed actions to memory, then resume the LLM with unchanged world, goal, options and previous rejection. Forced choice is outside natural rate and receives no credit as a model decision. Fresh model session; subsequent guard remains active. No untreated randomised comparison at this checkpoint.",
+  "recovery_http_requests": 69
+}

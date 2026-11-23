@@ -1,0 +1,15 @@
+/data/
+/data-*/
+/local/
+/runtime/node_modules/
+node_modules/
+.venv*/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+*.sqlite3
+*.sqlite3-*
+/state/.*lock
+/state/.pending-*.json
