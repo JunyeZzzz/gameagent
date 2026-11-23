@@ -74,3 +74,7 @@
 - [冻结探测和恢复协议](../benchmarks/data/decision-probes.json)保留逐次选择、固定场景、比较条件和请求计数。
 
 回放复核已发生的游戏动作；重新调用模型会产生新的决策样本。GitHub Actions 在每次推送时用本机模拟模型测试控制链路，然后在固定版本的游戏引擎中回放全部轨迹。
+
+## 发布验证 · 2026-11-23
+
+在干净的 macOS 克隆中安装依赖（Python 3.12、Node.js 25.9.0），14 项 Python 测试、Node 追踪测试和全部 881 步回放通过。另经正式启动入口加载 DoorKey B，本机模拟模型提交左转，原生游戏改变朝向并返回完成回执。GitHub 的 Ubuntu 环境使用 Python 3.12 和 Node.js 24 独立通过了测试和整套回放。 [首次 CI 记录](https://github.com/JunyeZzzz/gameagent/actions/runs/45139146929) · [后续验证](https://github.com/JunyeZzzz/gameagent/actions/workflows/verify.yml)
