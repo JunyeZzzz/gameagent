@@ -39,13 +39,15 @@ def adapter_for(name):
     return adapter
 
 
-def write_json(path, value):
+def write_json(path, value, durable=True):
+    # Atomic replace always; fsync only for files that must survive a crash (intents, receipts, task state).
     with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, encoding="utf-8", delete=False) as file:
         name = file.name
         try:
             json.dump(value, file, ensure_ascii=False, allow_nan=False)
             file.flush()
-            os.fsync(file.fileno())
+            if durable:
+                os.fsync(file.fileno())
             os.replace(name, path)
         finally:
             Path(name).unlink(missing_ok=True)
@@ -214,5 +216,9 @@ if __name__ == "__main__":
             if line.strip() != "observe":
                 raise ValueError("invalid observation request")
             print(json.dumps(exchange(adapter, root), ensure_ascii=False), flush=True)
+    elif sys.argv[1:] == ["--serve"]:
+        # Tool calls: one JSON request per line (null observes). Any error ends the worker.
+        for line in sys.stdin:
+            print(json.dumps(exchange(adapter, root, json.loads(line)), ensure_ascii=False), flush=True)
     else:
         print(json.dumps(exchange(adapter, root, json.load(sys.stdin)), ensure_ascii=False))

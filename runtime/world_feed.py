@@ -104,7 +104,7 @@ class WorldFeed:
             state.update(sequence=sequence, sampled_at=now, pending_id=(view.get("pending") or {}).get("id"),
                          result_id=last.get("id"), result_status=last.get("status"))
             try:
-                write_json(self.home / "perception.json", state)
+                write_json(self.home / "perception.json", state, durable=False)
             except OSError:
                 pass  # The live in-memory sample remains available.
             self.wake.wait(max(.02, self.period - (time.time() - start)))

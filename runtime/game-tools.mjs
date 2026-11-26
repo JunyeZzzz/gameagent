@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Type } from 'typebox';
 import { createFlowTrace } from './agent-flow-trace.mjs';
@@ -18,19 +18,80 @@ const taskUpdate = Type.Optional(Type.Object({
     description: '需要时间复核时填写秒数。现场变化也可提前触发判断。' })),
 }, { additionalProperties: false, description: '首次形成或实质改变的当前任务判断。' }));
 
-function exchange(request) {
-  return new Promise((resolve, reject) => {
-    const child = execFile(process.env.GAMEAGENT_PYTHON, [bridge], {
-      timeout: 7000, killSignal: 'SIGKILL', maxBuffer: 512_000,
+// Commitment: one warm environment worker answers tool calls in order, one JSON line per request.
+// Assumption: adapters keep game state on disk, so a long-lived module sees the same world a fresh one would.
+// Trade-off: any failure, timeout or adapter edit discards the worker; the next call starts a clean one.
+// Reconsider: adapters that cache state in memory, or calls that must run concurrently.
+export function createEnvironmentBridge({ timeoutMs = 7000, replyLimit = 512_000,
+  adapterFile = () => new URL(`../adapters/${process.env.GAMEAGENT_ADAPTER}.py`, import.meta.url) } = {}) {
+  let worker = null, generation = null, queue = Promise.resolve();
+  const adapterVersion = () => {
+    try {
+      const info = statSync(adapterFile());
+      return `${info.ino}:${info.mtimeMs}:${info.size}`;
+    } catch { return null; }
+  };
+  const discard = () => {
+    const current = worker;
+    worker = null;
+    if (current && current.exitCode === null && current.signalCode === null) current.kill('SIGKILL');
+  };
+  function start() {
+    const child = spawn(process.env.GAMEAGENT_PYTHON, [bridge, '--serve'], {
+      stdio: ['pipe', 'pipe', 'ignore'],
       env: { GAMEAGENT_ROOT: process.env.GAMEAGENT_ROOT, GAMEAGENT_ADAPTER: process.env.GAMEAGENT_ADAPTER,
              PATH: process.env.PATH, PYTHONUTF8: '1' },
-    }, (error, output) => {
-      if (error) return reject(new Error('环境接口未返回有效结果'));
-      try { resolve(JSON.parse(output)); } catch (parseError) { reject(parseError); }
     });
-    child.stdin.on('error', () => {}); // Early exit is reported by execFile.
-    child.stdin.end(JSON.stringify(request));
-  });
+    child.stdin.on('error', () => {}); // Early exit is reported through the pending call.
+    child.on('error', () => {});
+    child.on('exit', () => { if (worker === child) worker = null; });
+    return child;
+  }
+  function send(request) {
+    return new Promise((resolve, reject) => {
+      const version = adapterVersion();
+      if (worker && version !== generation) discard();
+      if (!worker) { worker = start(); generation = version; }
+      const child = worker;
+      const chunks = [];
+      let size = 0;
+      const settle = (error, value) => {
+        clearTimeout(timer);
+        child.stdout.off('data', onData);
+        child.off('exit', onExit);
+        child.off('error', onExit);
+        if (error) {
+          if (worker === child) discard();
+          reject(error);
+        } else resolve(value);
+      };
+      const onExit = () => settle(new Error('环境接口未返回有效结果'));
+      const onData = chunk => {
+        const end = chunk.indexOf(10);
+        chunks.push(end === -1 ? chunk : chunk.subarray(0, end));
+        size += end === -1 ? chunk.length : end;
+        if (size > replyLimit) return settle(new Error('环境接口未返回有效结果'));
+        if (end === -1) return;
+        if (end !== chunk.length - 1) return settle(new Error('环境接口返回了多余数据'));
+        try { settle(null, JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+        catch (parseError) { settle(parseError); }
+      };
+      const timer = setTimeout(onExit, timeoutMs);
+      child.stdout.on('data', onData);
+      child.once('exit', onExit);
+      child.once('error', onExit);
+      child.stdin.write(JSON.stringify(request) + '\n');
+    });
+  }
+  process.once('exit', discard);
+  return {
+    call(request) {
+      const reply = queue.then(() => send(request));
+      queue = reply.catch(() => {});
+      return reply;
+    },
+    close: discard,
+  };
 }
 
 function result(details) {
@@ -39,6 +100,8 @@ function result(details) {
 
 export default function gameTools(pi) {
   const trace = createFlowTrace();
+  const environment = createEnvironmentBridge();
+  const exchange = request => environment.call(request);
   let observation, actionSubmitted, requestId, initialSession, initialParent, initialGoal, initialGoalId, priorGoalResult, findings, currentTask;
   let batchDecides, readOnlyBatches, initialSituation, situationChange, initialViewer, viewerAnswered;
   const viewerReply = Type.Optional(Type.String({ minLength: 1, maxLength: 240,
@@ -146,7 +209,7 @@ export default function gameTools(pi) {
     trace.write('tool_end', { tool: e.toolName, call_id: e.toolCallId, status }, details);
   });
   pi.on('agent_end', () => trace.write('round_end', {}));
-  pi.on('session_shutdown', () => trace.close());
+  pi.on('session_shutdown', () => { environment.close(); trace.close(); });
 
   pi.registerTool({
     name: 'game_lookup', label: '查询游戏目录',

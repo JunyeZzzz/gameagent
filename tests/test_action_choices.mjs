@@ -14,17 +14,20 @@ test('numbered actions keep their target through refresh and use the original ID
   Object.assign(process.env, { GAMEAGENT_HOME: root, GAMEAGENT_ROOT: root,
     GAMEAGENT_PROMPT_CLOCK: clock, GAMEAGENT_PYTHON: fixture });
   writeFileSync(fixture, `#!/bin/sh
-request=$(cat)
-if [ "$request" = null ]; then
-  cat "$GAMEAGENT_ROOT/snapshot.json"
-elif [ -f "$GAMEAGENT_ROOT/change-once" ]; then
-  rm "$GAMEAGENT_ROOT/change-once"
-  printf '%s' "$request" > "$GAMEAGENT_ROOT/rejected-intent.json"
-  printf '{"status":"rejected","reason":"observation_changed"}'
-else
-  printf '%s' "$request" > "$GAMEAGENT_ROOT/intent.json"
-  printf '{"status":"accepted"}'
-fi
+[ "$2" = --serve ] || exit 2
+while IFS= read -r request; do
+  if [ "$request" = null ]; then
+    cat "$GAMEAGENT_ROOT/snapshot.json"
+  elif [ -f "$GAMEAGENT_ROOT/change-once" ]; then
+    rm "$GAMEAGENT_ROOT/change-once"
+    printf '%s' "$request" > "$GAMEAGENT_ROOT/rejected-intent.json"
+    printf '{"status":"rejected","reason":"observation_changed"}'
+  else
+    printf '%s' "$request" > "$GAMEAGENT_ROOT/intent.json"
+    printf '{"status":"accepted"}'
+  fi
+  printf '\\n'
+done
 `, { mode: 0o700 });
   const hooks = new Map(), tools = new Map();
   let activeTools = [];

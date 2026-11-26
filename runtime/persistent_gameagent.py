@@ -388,7 +388,7 @@ def serve(home, adapter, model, env, once):
             fields.setdefault("viewer_reply", viewer_reply)
         data = dict(status=name, adapter=adapter.__name__, **fields)
         if data != last_status:
-            write_json(home / "status.json", dict(data, updated_at=time.time()))
+            write_json(home / "status.json", dict(data, updated_at=time.time()), durable=False)
             last_status = data
 
     try:

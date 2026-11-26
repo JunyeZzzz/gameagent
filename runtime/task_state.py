@@ -61,7 +61,6 @@ class TaskState:
             if type(start) in (int, float) and math.isfinite(start):
                 view["review_elapsed_s"] = round(max(0, now - start), 2)
         return view
-        return None
 
     def update(self, scope, run_id, receipt):
         if receipt.get("status") not in ("observing", "accepted", "running", "completed"):
