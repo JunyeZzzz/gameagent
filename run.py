@@ -2,9 +2,11 @@
 """Launch one local GameAgent worker. The selected adapter owns game I/O."""
 import argparse
 import fcntl
+import json
 import os
 from pathlib import Path
 import sys
+from urllib.parse import urlsplit
 
 PROJECT = Path(__file__).resolve().parent
 RUNTIME = PROJECT / "runtime"
@@ -40,11 +42,23 @@ def main():
         model = os.getenv("GAMEAGENT_MODEL", "deepseek-flash")
         config = home / "config"
         config.mkdir(mode=0o700, exist_ok=True)
-        provider = {"baseUrl": os.getenv("GAMEAGENT_MODEL_URL", "https://api.deepseek.com"),
+        base_url = os.getenv("GAMEAGENT_MODEL_URL", "https://api.deepseek.com")
+        # Pi sends DeepSeek's explicit thinking toggle only for a reasoning-capable model.
+        provider = {"baseUrl": base_url,
                     "api": "openai-completions", "apiKey": "$GAMEAGENT_API_KEY",
-                    "models": [{"id": model, "name": model, "input": ["text"], "reasoning": False,
+                    "models": [{"id": model, "name": model, "input": ["text"], "reasoning": urlsplit(base_url).hostname == "api.deepseek.com",
                                 "contextWindow": 131072, "maxTokens": 1024}]}
         write_json(config / "models.json", {"providers": {"gameagent": provider}})
+        settings_file = config / "settings.json"
+        settings = json.loads(settings_file.read_text(encoding="utf-8")) if settings_file.exists() else {}
+        # Bound both the wait for headers and silence after a streaming response starts.
+        model_timeout_ms = 12_000
+        settings["httpIdleTimeoutMs"] = model_timeout_ms
+        retry = settings.setdefault("retry", {})
+        retry["enabled"] = False
+        # The worker retries from a fresh observation after backoff.
+        retry.setdefault("provider", {}).update(timeoutMs=model_timeout_ms, maxRetries=0)
+        write_json(settings_file, settings)
         env = dict(os.environ, GAMEAGENT_API_KEY=key, GAMEAGENT_HOME=str(home),
                    GAMEAGENT_ROOT=str(state), GAMEAGENT_ADAPTER=args.adapter,
                    GAMEAGENT_PYTHON=sys.executable, PI_CODING_AGENT_DIR=str(config),
