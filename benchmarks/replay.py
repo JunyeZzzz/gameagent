@@ -23,8 +23,9 @@ def check_episode(episode, steps, grid_adapter):
         raise ValueError(f"{name}: missing or unexpected steps")
     taxi = episode["game"] == "Taxi-v4"
     if taxi:
-        env = gym.make("Taxi-v4", fickle_passenger=episode["fickle_passenger"],
-                       is_rainy=episode["is_rainy"])
+        settings = {key: episode[key] for key in ("is_rainy", "rainy_probability",
+                                                 "fickle_passenger", "fickle_probability") if key in episode}
+        env = gym.make("Taxi-v4", **settings)
     else:
         env = FullyObsWrapper(gym.make(episode["game"]))
     try:

@@ -1,10 +1,28 @@
 # GameAgent
 
-GameAgent 是一个可接入不同游戏的本地 LLM 运行时。游戏适配器提供玩家能获得的现场信息、目标与可选动作；模型决定下一步；游戏回执告诉它这一步实际发生了什么。仓库内可以启动一个最小沙盒，也可以让模型玩 MiniGrid 的 DoorKey 和 LavaGap。
+GameAgent 是一个可接入不同游戏的本地 LLM 运行时。游戏适配器提供玩家能获得的现场信息、目标与可选动作，模型决定下一步，游戏回执记录实际结果。仓库内可以启动最小沙盒，也可以让模型玩 Gymnasium 的 Taxi-v4 和 MiniGrid 的多种关卡。
 
 ![GameAgent 在 Taxi-v4 中接客并到站](docs/media/taxi-demo.gif)
 
 *早期 Taxi-v4 现场演示。DeepSeek 在第 2 步接到乘客，第 11 步送达，全程 13 次模型请求。录像对应的原生轨迹为 `demo/live`。画面由 Gymnasium 渲染。* [实测记录](docs/experiments.md) · [Gymnasium 许可](docs/licenses/gymnasium.txt)
+
+## 最新实测
+
+2026-11-26，用 DeepSeek Flash 通过同一个启动入口各跑一局。**Taxi 4 局全部送达，MiniGrid 5 关全部通关，共 169 个原生动作。**
+
+| 场景 | Seed | 原生步数 | 模型请求 | 用时（秒） | 原生结果 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Taxi · 晴天 | 11 | 16 | 16 | 24.65 | 送达，达到最短步数 |
+| Taxi · 晴天 | 33 | 9 | 9 | 17.78 | 送达，达到最短步数 |
+| Taxi · 雨天 | 23 | 18 | 18 | 28.41 | 偏离一次后仍送达 |
+| Taxi · 乘客途中改目的地 | 42 | 10 | 10 | 14.65 | 从 Y 改到 B，送到 B |
+| MiniGrid · DoorKey 6×6 | 31 | 11 | 9 | 16.49 | 通关 |
+| MiniGrid · LavaCrossing S9N2 | 107 | 28 | 32 | 53.23 | 通关 |
+| MiniGrid · UnlockPickup | 19 | 20 | 18 | 28.66 | 通关 |
+| MiniGrid · Dynamic Obstacles 6×6 | 29 | 19 | 22 | 33.63 | 通关 |
+| MiniGrid · MultiRoom N4-S5 | 73 | 38 | 41 | 65.94 | 通关 |
+
+两次 MiniGrid 提交违反了动作 ID 与编号的二选一要求。工具拒绝时游戏状态未推进，模型调整后继续通关。每个场景只跑了一局，场景设置、奖励与原生回执见[实测记录](docs/experiments.md)和[逐局数据](benchmarks/data/episodes.json)。
 
 ## 快速开始
 
@@ -33,6 +51,21 @@ GAMEAGENT_ROOT="$world" python3 run.py
 
 沙盒从位置 0 出发，目标是位置 3。到达目标后进程会等待；按 Ctrl+C 停止。运行 `python3 run.py --once` 可在默认环境执行一个观察与决策周期。另开终端，在同一项目根目录运行 `python3 monitor.py` 并访问它打印的本机地址，可查看每轮观察、模型公开输出、工具调用和游戏回执。单轮可能包含多个模型请求。
 
+## 让模型玩 Taxi-v4
+
+沿用快速开始配置的模型密钥，使用 Python 3.12 安装游戏依赖。
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r examples/minigrid/requirements.txt
+mkdir -p local
+world=$(mktemp -d "$PWD/local/taxi.XXXXXX")
+cp examples/taxi/episode.json "$world/episode.json"
+GAMEAGENT_ROOT="$world" .venv/bin/python run.py --adapter taxi
+```
+
+默认从晴天 seed 11 开始。每局用新的状态目录，可在启动前修改 `seed`，或设置 `is_rainy`、`fickle_passenger` 来测试雨天或改目的地。适配器给出一格一格的动作和到当前站点的路线首步，乘客改站后按原生观察刷新。 [Taxi-v4 环境说明](https://gymnasium.farama.org/environments/toy_text/taxi/)
+
 ## 让模型玩 MiniGrid
 
 在项目根目录用 Python 3.12 安装示例依赖，使用上面设置的模型密钥启动。
@@ -48,11 +81,11 @@ GAMEAGENT_ROOT="$world" .venv/bin/python run.py --adapter doorworld
 
 模型需要转身、拾取钥匙、开门并走到目标。换用 `door-key-8x8.json` 或 `lava-gap-24.json`，可以在新局里观察大地图和熔岩岔路上的选择。该示例使用 MiniGrid 的全图观察，提供朝向、面前地块、背包、原生动作和到已知地标的路线首步。
 
-已安装示例依赖后，可在本机逐步核对归档中的 53 局、881 个游戏动作。两条命令都可以离线运行，无需模型密钥。
+已安装示例依赖后，可在本机逐步核对归档中的 62 局、1,050 个游戏动作。回放可以离线运行，无需模型密钥。
 
 ```sh
 .venv/bin/python benchmarks/replay.py
-.venv/bin/python benchmarks/replay.py --episode effects/lava24
+.venv/bin/python benchmarks/replay.py --episode live-20261126/taxi-redirect-42
 ```
 
 ## 一次行动如何发生
