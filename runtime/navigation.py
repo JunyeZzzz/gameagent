@@ -50,8 +50,19 @@ def route_options(start, neighbors, landmarks, *, with_path=False):
     return options
 
 
-def route_actions(routes, actions):
-    """Bind one already available movement to a destination in this revision."""
+TRAVEL = "travel:"
+
+
+def travel_id(target):
+    return TRAVEL + json.dumps(target, ensure_ascii=False)
+
+
+def route_actions(routes, actions, *, travel=False):
+    """Bind one already available movement to a destination in this revision.
+
+    With travel enabled the candidate moves until arrival instead of one step;
+    the first native movement is still the route's first action.
+    """
     if not isinstance(routes, dict):
         return []
     native_ids = {action["id"] for action in actions}
@@ -64,10 +75,15 @@ def route_actions(routes, actions):
             continue
         if type(distance) not in (int, float) or not math.isfinite(distance) or distance <= 0:
             continue
-        identity = "route:" + json.dumps([target, primitive], ensure_ascii=False, separators=(",", ":"))
+        if travel:
+            identity = travel_id(target)
+            description = (f"前往 {target}，剩余 {distance:g} 步。连续移动，每步后按最新现场重算路线，"
+                           "到达、受阻或现场变化时停下")
+        else:
+            identity = "route:" + json.dumps([target, primitive], ensure_ascii=False, separators=(",", ":"))
+            description = f"向 {target} 沿当前路线走，剩余 {distance:g} 步，先执行 {primitive}"
         if identity in native_ids:
             continue
-        result.append({"id": identity, "numbered": True,
-                       "description": f"向 {target} 沿当前路线走，剩余 {distance:g} 步，先执行 {primitive}",
+        result.append({"id": identity, "numbered": True, "description": description,
                        "target": target, "primitive": primitive})
     return result

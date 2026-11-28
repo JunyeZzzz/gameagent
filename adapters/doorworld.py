@@ -359,6 +359,8 @@ def observe(root):
         if run["routes"]:
             rows = terrain_rows(facts, steps)
             routes["routes"] = map_options(facts, rows, obs["image"])
+            # Opt-in travel. Moving obstacles change the board after every input, so each step stays a decision.
+            routes["travel"] = run.get("travel") is True and not facts.get("obstacles_move_each_action")
             door_plan = unlock_plan(run, env, facts, obs["image"], rows) if reason is None else None
             if door_plan:
                 actions.insert(0, door_plan[1])

@@ -64,7 +64,7 @@ cp examples/taxi/episode.json "$world/episode.json"
 GAMEAGENT_ROOT="$world" .venv/bin/python run.py --adapter taxi
 ```
 
-默认从晴天 seed 11 开始。每局用新的状态目录，可在启动前修改 `seed`，或设置 `is_rainy`、`fickle_passenger` 来测试雨天或改目的地。适配器给出一格一格的动作和到当前站点的路线首步，乘客改站后按原生观察刷新。 [Taxi-v4 环境说明](https://gymnasium.farama.org/environments/toy_text/taxi/)
+默认从晴天 seed 11 开始。每局用新的状态目录，可在启动前修改 `seed`，或设置 `is_rainy`、`fickle_passenger` 来测试雨天或改目的地。适配器给出一格一格的动作和到当前站点的路线首步，乘客改站后按原生观察刷新。在 `episode.json` 里加 `"travel": true`，模型可以一次决定开到站点，运行时逐步执行并在每步后重算路线；MiniGrid 示例同样支持。说明见[连续路线](docs/adapters.md#连续路线可选)。 [Taxi-v4 环境说明](https://gymnasium.farama.org/environments/toy_text/taxi/)
 
 ## 让模型玩 MiniGrid
 

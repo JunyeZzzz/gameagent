@@ -107,6 +107,8 @@ def observe(root):
             label = ("送客 " if facts["passenger"] == "onboard" else "接客 ") + station
             result["routes"] = route_options(tuple(facts["taxi_rc"]), lambda point: neighbors(native, point),
                                              {label: (stations[station],)})
+            # Opt-in: drive to the station in one decision; the runtime replans after every native step.
+            result["travel"] = run.get("travel") is True
         return result
     finally:
         env.close()

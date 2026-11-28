@@ -9,10 +9,13 @@ import re
 import sys
 import tempfile
 import time
-from navigation import route_actions
+from navigation import TRAVEL, route_actions
 
 PROJECT = Path(__file__).resolve().parents[1]
 TERMINAL = {"completed", "rejected", "failed", "cancelled"}
+TRAVEL_STEP_LIMIT = 32
+TRAVEL_SECONDS = 4.0
+TRAVEL_STALL_LIMIT = 3
 
 
 def situation_key(view):
@@ -78,7 +81,7 @@ def observe(adapter, root, bindings=None):
     if not -0.5 <= time.time() - sampled <= ttl:
         return {"ready": False, "reason": "stale_observation"}
     if data.get("routes"):
-        options = route_actions(data["routes"], actions)
+        options = route_actions(data["routes"], actions, travel=data.get("travel") is True)
         if bindings is not None:
             bindings.update((option["id"], option["primitive"]) for option in options)
         data = {**data, "actions": actions + options}
@@ -208,6 +211,94 @@ def exchange(adapter, root, request=None):
             return {"status": "unknown", "id": request["id"], "reason": str(error)}
 
 
+def travel_stop(start, view, target):
+    """Why a travel must stop before its next step, or None with the route to follow."""
+    if not view.get("ready"):
+        return view.get("reason") or "not_ready", None
+    if view.get("pending"):
+        return "action_pending", None
+    if any(start.get(key) != view.get(key) for key in ("session", "goal", "goal_id", "viewer_id")):
+        return "goal_changed", None
+    if situation_key(start) != situation_key(view):
+        return "situation_changed", None
+    if (view.get("ongoing") or {}).get("requires_action"):
+        return "action_required", None
+    route = (view.get("routes") or {}).get(target)
+    if not isinstance(route, dict) or type(route.get("distance")) not in (int, float):
+        return "route_lost", None
+    if route["distance"] <= 0:
+        return "arrived", route
+    if route.get("first_action") not in {action["id"] for action in view["actions"]}:
+        return "route_lost", None
+    return None, route
+
+
+def travel(adapter, root, request):
+    """Follow the route to one landmark, one ordinary intent per native step.
+
+    Each step is written, deduplicated and receipted exactly like a single action, and the
+    route is recomputed from a fresh observation after every step. The plan itself is not
+    persisted: after a crash only the in-flight step is reconciled and the model decides again.
+    """
+    target = json.loads(request["action"][len(TRAVEL):])
+    start = exchange(adapter, root)
+    if not start.get("ready") or start.get("pending"):
+        return exchange(adapter, root, request)
+    receipt = exchange(adapter, root, request)
+    receipts = [receipt]
+    deadline = time.monotonic() + TRAVEL_SECONDS
+    best = ((start.get("routes") or {}).get(target) or {}).get("distance")
+    stalled = 0
+    view = start
+    while True:
+        if receipt.get("status") != "completed":
+            stopped = "step_" + str(receipt.get("status") or "unknown")
+            break
+        view = exchange(adapter, root)
+        stopped, route = travel_stop(start, view, target)
+        if stopped:
+            break
+        if type(best) in (int, float) and route["distance"] >= best:
+            stalled += 1
+        else:
+            stalled = 0
+        best = route["distance"] if best is None else min(best, route["distance"])
+        if stalled >= TRAVEL_STALL_LIMIT:
+            stopped = "no_progress"
+        elif len(receipts) >= TRAVEL_STEP_LIMIT:
+            stopped = "step_limit"
+        elif time.monotonic() >= deadline:
+            stopped = "time_limit"
+        if stopped:
+            break
+        step = dict(id=f'{request["id"]}:{len(receipts)}', action=route["first_action"],
+                    session=view["session"], goal=view["goal"], revision=view["revision"],
+                    expires_at=view["observed_at"] + view["valid_for"])
+        for key in ("goal_id", "subgoal"):
+            if request.get(key) is not None:
+                step[key] = request[key]
+        if situation_key(view) is not None:
+            step["situation_key"] = situation_key(view)
+        receipt = exchange(adapter, root, step)
+        receipts.append(receipt)
+    done = [r for r in receipts if r.get("status") == "completed"]
+    summary = dict(target=target, native_steps=len(done), native_actions=[r.get("action") for r in done],
+                   stopped=stopped)
+    left = ((view.get("routes") or {}).get(target) or {}).get("distance")
+    if stopped != "arrived" and type(left) in (int, float):
+        summary["distance_left"] = left
+    result = dict(receipt, action=request["action"], travel=summary)
+    if done and isinstance(done[0].get("before"), dict):
+        result["before"] = done[0]["before"]
+    return result
+
+
+def dispatch(adapter, root, request=None):
+    if isinstance(request, dict) and str(request.get("action", "")).startswith(TRAVEL) and not request.get("parent_id"):
+        return travel(adapter, root, request)
+    return exchange(adapter, root, request)
+
+
 if __name__ == "__main__":
     root = inside(PROJECT, os.environ["GAMEAGENT_ROOT"])
     adapter = adapter_for(os.environ["GAMEAGENT_ADAPTER"])
@@ -219,6 +310,6 @@ if __name__ == "__main__":
     elif sys.argv[1:] == ["--serve"]:
         # Tool calls: one JSON request per line (null observes). Any error ends the worker.
         for line in sys.stdin:
-            print(json.dumps(exchange(adapter, root, json.loads(line)), ensure_ascii=False), flush=True)
+            print(json.dumps(dispatch(adapter, root, json.loads(line)), ensure_ascii=False), flush=True)
     else:
-        print(json.dumps(exchange(adapter, root, json.load(sys.stdin)), ensure_ascii=False))
+        print(json.dumps(dispatch(adapter, root, json.load(sys.stdin)), ensure_ascii=False))
